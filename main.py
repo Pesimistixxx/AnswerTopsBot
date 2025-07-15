@@ -302,7 +302,7 @@ def handle_question_input(message):
             lobby['questions'].append(lobby['questions'][0])
         else:
             lobby['questions'].append(message.text)
-        bot.send_message(user_id, "Вопросы сохранены!", reply_markup=types.ReplyKeyboardRemove())
+        bot.send_message(user_id, "Вопросы сохранены! Игроки начали составлять свой топ", reply_markup=types.ReplyKeyboardRemove())
 
         for i, user in enumerate(players):
             top_states[user] = {
@@ -384,31 +384,38 @@ def confirm_top(call):
         reply_markup=None
     )
     if call.data == 'top_correct':
-        lobby['players_top'][players.index(user_id)] = top_states[user_id]['top_people']
+        if lobby.get('players_top') is None:
+            lobby['players_top'] = []
+
+        lobby['players_top'].append(top_states[user_id]['top_people'])
         del top_states[user_id]
 
         other_user_id = [user for user in players if user != user_id][0]
 
-        if lobby.get('players_top'[players.index(user_id)]) is not None:
+        if len(lobby['players_top']) == 2:
             for user in lobby['users']:
                 bot.send_message(user, 'Топы составлены, приступаем к отгадыванию')
+            bot.send_message(host, f'{lobby['players_top']}')
 
-            bot.send_message(host, lobby['questions'][0])
-            bot.send_message(host, lobby['players_top'][0])
-            bot.send_message(host, lobby['questions'][1])
-            bot.send_message(host, lobby['players_top'][1])
+            bot.send_message(host, lobby['questions'][players.index(user_id)])
+            bot.send_message(host, ', '.join(lobby['players_top'][players.index(user_id)]))
+            bot.send_message(host, lobby['questions'][players.index(other_user_id)])
+            bot.send_message(host, ', '.join(lobby['players_top'][players.index(other_user_id)]))
 
             markup = types.InlineKeyboardMarkup(row_width=2)
             same_btn = types.InlineKeyboardButton('У соперника такой же вопрос', callback_data="same_question")
             other_btn = types.InlineKeyboardButton('У соперника другой же вопрос', callback_data="other_question")
             markup.add(same_btn, other_btn)
-
-            bot.send_message(other_user_id, lobby['players_top'][players.index(user_id)], reply_markup=markup)
-            bot.send_message(user_id, lobby['players_top'][players.index(other_user_id)], reply_markup=markup)
+            if players.index(user_id) == 0:
+                bot.send_message(other_user_id, ', '.join(lobby['players_top'][0]), reply_markup=markup)
+                bot.send_message(user_id, ', '.join(lobby['players_top'][1]), reply_markup=markup)
+            else:
+                bot.send_message(other_user_id, ', '.join(lobby['players_top'][1]), reply_markup=markup)
+                bot.send_message(user_id, ', '.join(lobby['players_top'][0]), reply_markup=markup)
 
         else:
             bot.send_message(user_id, 'Ожидаем другого игрока')
-            bot.send_message(host, f'{user_id} ответил')
+            bot.send_message(host, f'{user_username[user_id]} ответил')
 
     elif call.data == 'top_incorrect':
         top_states[user_id]['step'] = 0
@@ -435,19 +442,19 @@ def reveal_answers(call):
     second_question = lobby['questions'][1]
 
     if call.data == 'same_question' and first_question == second_question:
-        bot.send_message(host, f'{user_id} ответил правильно')
+        bot.send_message(host, f'{user_username[user_id]} ответил правильно')
         bot.send_message(user_id, f'ты ответил правильно')
 
     elif call.data == 'other_question' and first_question == second_question:
-        bot.send_message(host, f'{user_id} ответил неправильно')
+        bot.send_message(host, f'{user_username[user_id]} ответил неправильно')
         bot.send_message(user_id, f'ты ответил неправильно')
 
     elif call.data == 'same_question' and first_question != second_question:
-        bot.send_message(host, f'{user_id} ответил неправильно')
+        bot.send_message(host, f'{user_username[user_id]} ответил неправильно')
         bot.send_message(user_id, f'ты ответил неправильно')
 
     elif call.data == 'other_question' and first_question != second_question:
-        bot.send_message(host, f'{user_id} ответил правильно')
+        bot.send_message(host, f'{user_username[user_id]} ответил правильно')
         bot.send_message(user_id, f'ты ответил правильно')
     else:
         bot.answer_callback_query(call.id, "Ошибка состояния. Начните заново командой /start")
