@@ -1,0 +1,6 @@
+services:
+  bot:
+    image: answer_tops_bot
+    build:
+      context: .
+      dockerfile: Dockerfile
