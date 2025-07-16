@@ -169,7 +169,7 @@ def check_lobby(message):
         lobby['active'] = True
         for user in lobby['users']:
             bot.send_message(user, 'Лобби наполнилось, игра начинается')
-            bot.send_message(user, 'azber.ru - лучший сайт на планете Сатурн'
+            bot.send_message(user, 'azber.ru - лучший сайт на планете Сатурн\n'
                                    '@WordleCrackerBot - для абсолютов Wordle')
         start_game(user_code)
 
@@ -410,7 +410,7 @@ def confirm_top(call):
             bot.send_message(host, lobby['questions'][players.index(user_id)])
             bot.send_message(host, "\n".join([f"{i+1}. {name}" for i, name in enumerate(lobby['players_top'][1])]))
             bot.send_message(host, lobby['questions'][players.index(other_user_id)])
-            bot.send_message(host, "\n".join([f"{i+1}. {name}" for i, name in enumerate(lobby['players_top'][1])]))
+            bot.send_message(host, "\n".join([f"{i+1}. {name}" for i, name in enumerate(lobby['players_top'][0])]))
 
             markup = types.InlineKeyboardMarkup(row_width=2)
             same_btn = types.InlineKeyboardButton('У соперника такой же вопрос', callback_data="same_question")
@@ -420,8 +420,8 @@ def confirm_top(call):
             for user in players:
                 bot.send_message(user, 'Топ соперника, попытайся определить одинаковые ли у вас вопросы')
 
-            bot.send_message(other_user_id, ', '.join(lobby['players_top'][1]), reply_markup=markup)
-            bot.send_message(user_id, ', '.join(lobby['players_top'][0]), reply_markup=markup)
+            bot.send_message(other_user_id, "\n".join([f"{i + 1}. {name}" for i, name in enumerate(lobby['players_top'][1])]), reply_markup=markup)
+            bot.send_message(user_id, "\n".join([f"{i + 1}. {name}" for i, name in enumerate(lobby['players_top'][0])]), reply_markup=markup)
 
         else:
             bot.send_message(user_id, 'Ожидаем другого игрока')
@@ -432,7 +432,18 @@ def confirm_top(call):
         top_states[user_id]['top_people'] = []
 
         bot.send_message(user_id, f'Можешь начинать вводить свой топ на вопрос: {lobby["questions"][players.index(user_id)]}')
-        bot.send_message(user_id, '1 место')
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add(
+            types.KeyboardButton(lobby['selectable_players'][0]),
+            types.KeyboardButton(lobby['selectable_players'][1]),
+            types.KeyboardButton(lobby['selectable_players'][2])
+        )
+        markup.add(
+            types.KeyboardButton(lobby['selectable_players'][3]),
+            types.KeyboardButton(lobby['selectable_players'][4]),
+            types.KeyboardButton(lobby['selectable_players'][5])
+        )
+        bot.send_message(user_id, '1 место', reply_markup=markup)
     else:
         bot.answer_callback_query(call.id, "Ошибка состояния. Начните заново командой /start")
 
