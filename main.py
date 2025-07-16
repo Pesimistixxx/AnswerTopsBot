@@ -1,4 +1,3 @@
-
 import telebot
 import os
 import random
@@ -57,6 +56,7 @@ def handle_callback(call):
         join_lobby(call.message)
     elif call.data == '/info':
         info(call.message)
+
     bot.answer_callback_query(call.id)
 
 
@@ -108,6 +108,7 @@ def leave_lobby(message):
     lobby_id = user_lobby_data[user_id]
     lobby = lobby_data[lobby_id]
     lobby['users'].remove(user_id)
+
     del user_lobby_data[user_id]
 
     if len(lobby['users']) == 0:
@@ -116,6 +117,7 @@ def leave_lobby(message):
     else:
         bot.send_message(user_id, "Вы вышли из лобби.")
         lobby["active"] = False
+
         for user in lobby_data[lobby_id]['users'][:]:
             bot.send_message(user, f'Участник {user_username[user]} вышел, игра завершена')
             lobby['users'].remove(user)
@@ -126,15 +128,18 @@ def leave_lobby(message):
 def join_lobby(message):
     user_id = message.chat.id
     user_username[user_id] = get_user_name(message.chat)
+
     if user_id in user_lobby_data:
         bot.send_message(user_id, "Вы уже в лобби! Сначала выйдите из текущего (/leave)")
         return
+
     user_code = bot.send_message(user_id, "Введи код лобби (4 буквы)")
     bot.register_next_step_handler(user_code, check_lobby)
 
 
 def check_lobby(message):
     user_id = message.chat.id
+
     try:
         if message.text.startswith('/'):
             return
@@ -164,6 +169,8 @@ def check_lobby(message):
         lobby['active'] = True
         for user in lobby['users']:
             bot.send_message(user, 'Лобби наполнилось, игра начинается')
+            bot.send_message(user, 'azber.ru - лучший сайт на планете Сатурн'
+                                   '@WordleCrackerBot - для абсолютов Wordle')
         start_game(user_code)
 
 
@@ -274,13 +281,16 @@ def questions_creating(lobby_id):
     bot.send_message(host, f'Введи вопрос для игрока {user_username[players[0]]}')
 
 
-@bot.message_handler(func=lambda message: message.from_user.id in question_states)
+@bot.message_handler(func=lambda message: message.from_user.id in question_states and not message.text.startswith('/'))
 def handle_question_input(message):
-    user_id = message.from_user.id
-    state = question_states[user_id]
+    host = message.from_user.id
+    state = question_states[host]
     lobby_id = state['lobby_id']
     players = state['players']
     step = state['step']
+
+    if not message.text:
+        bot.send_message(host, 'Ошибка, введи текст')
 
     if step == 0:
         lobby = lobby_data[lobby_id]
@@ -291,7 +301,7 @@ def handle_question_input(message):
         markup.add(btn_same)
 
         bot.send_message(
-            user_id,
+            host,
             f'Введи вопрос для игрока {user_username[players[1]]} или оставь предыдущий вопрос',
             reply_markup=markup
         )
@@ -302,7 +312,7 @@ def handle_question_input(message):
             lobby['questions'].append(lobby['questions'][0])
         else:
             lobby['questions'].append(message.text)
-        bot.send_message(user_id, "Вопросы сохранены! Игроки начали составлять свой топ", reply_markup=types.ReplyKeyboardRemove())
+        bot.send_message(host, "Вопросы сохранены! Игроки начали составлять свой топ", reply_markup=types.ReplyKeyboardRemove())
 
         for i, user in enumerate(players):
             top_states[user] = {
@@ -323,10 +333,10 @@ def handle_question_input(message):
                 types.KeyboardButton(lobby['selectable_players'][5])
             )
             bot.send_message(user, '1 место', reply_markup=markup)
-        del question_states[user_id]
+        del question_states[host]
 
 
-@bot.message_handler(func=lambda message: message.from_user.id in top_states)
+@bot.message_handler(func=lambda message: message.from_user.id in top_states and not message.text.startswith('/'))
 def handle_user_top(message):
     user_id = message.from_user.id
     state = top_states[user_id]
@@ -398,20 +408,20 @@ def confirm_top(call):
             bot.send_message(host, f'{lobby['players_top']}')
 
             bot.send_message(host, lobby['questions'][players.index(user_id)])
-            bot.send_message(host, ', '.join(lobby['players_top'][players.index(user_id)]))
+            bot.send_message(host, "\n".join([f"{i+1}. {name}" for i, name in enumerate(lobby['players_top'][1])]))
             bot.send_message(host, lobby['questions'][players.index(other_user_id)])
-            bot.send_message(host, ', '.join(lobby['players_top'][players.index(other_user_id)]))
+            bot.send_message(host, "\n".join([f"{i+1}. {name}" for i, name in enumerate(lobby['players_top'][1])]))
 
             markup = types.InlineKeyboardMarkup(row_width=2)
             same_btn = types.InlineKeyboardButton('У соперника такой же вопрос', callback_data="same_question")
             other_btn = types.InlineKeyboardButton('У соперника другой же вопрос', callback_data="other_question")
             markup.add(same_btn, other_btn)
-            if players.index(user_id) == 0:
-                bot.send_message(other_user_id, ', '.join(lobby['players_top'][0]), reply_markup=markup)
-                bot.send_message(user_id, ', '.join(lobby['players_top'][1]), reply_markup=markup)
-            else:
-                bot.send_message(other_user_id, ', '.join(lobby['players_top'][1]), reply_markup=markup)
-                bot.send_message(user_id, ', '.join(lobby['players_top'][0]), reply_markup=markup)
+
+            for user in players:
+                bot.send_message(user, 'Топ соперника, попытайся определить одинаковые ли у вас вопросы')
+
+            bot.send_message(other_user_id, ', '.join(lobby['players_top'][1]), reply_markup=markup)
+            bot.send_message(user_id, ', '.join(lobby['players_top'][0]), reply_markup=markup)
 
         else:
             bot.send_message(user_id, 'Ожидаем другого игрока')
@@ -420,6 +430,7 @@ def confirm_top(call):
     elif call.data == 'top_incorrect':
         top_states[user_id]['step'] = 0
         top_states[user_id]['top_people'] = []
+
         bot.send_message(user_id, f'Можешь начинать вводить свой топ на вопрос: {lobby["questions"][players.index(user_id)]}')
         bot.send_message(user_id, '1 место')
     else:
@@ -432,14 +443,14 @@ def reveal_answers(call):
     lobby_id = user_lobby_data[user_id]
     lobby = lobby_data[lobby_id]
     host = lobby['creator']
+    first_question = lobby['questions'][0]
+    second_question = lobby['questions'][1]
 
     bot.edit_message_reply_markup(
         chat_id=user_id,
         message_id=call.message.message_id,
         reply_markup=None
     )
-    first_question = lobby['questions'][0]
-    second_question = lobby['questions'][1]
 
     if call.data == 'same_question' and first_question == second_question:
         bot.send_message(host, f'{user_username[user_id]} ответил правильно')
@@ -456,6 +467,7 @@ def reveal_answers(call):
     elif call.data == 'other_question' and first_question != second_question:
         bot.send_message(host, f'{user_username[user_id]} ответил правильно')
         bot.send_message(user_id, f'ты ответил правильно')
+
     else:
         bot.answer_callback_query(call.id, "Ошибка состояния. Начните заново командой /start")
 
